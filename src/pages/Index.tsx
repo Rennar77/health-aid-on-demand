@@ -1,12 +1,21 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import Navbar from "@/components/navigation/navbar"
+import HeroSection from "@/components/health/hero-section"
+import SymptomChecker from "@/components/health/symptom-checker"
+import ClinicFinder from "@/components/health/clinic-finder"
+import HealthDashboard from "@/components/health/health-dashboard"
+import AuthForm from "@/components/auth/auth-form"
+import Footer from "@/components/footer/footer"
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen">
+      <Navbar />
+      <HeroSection />
+      <HealthDashboard />
+      <SymptomChecker />
+      <ClinicFinder />
+      <AuthForm />
+      <Footer />
     </div>
   );
 };
