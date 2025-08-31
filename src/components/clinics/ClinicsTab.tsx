@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { MapPin, Phone, Map as MapIcon, List } from 'lucide-react'
+import { MapPin, Phone, Navigation, AlertTriangle, List, Map as MapIcon } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
+import { useNearbyClinics } from '@/hooks/useNearbyClinics'
 import { toast } from 'sonner'
-import mapboxgl from 'mapbox-gl'
 
 interface Clinic {
   id: string
@@ -14,130 +14,69 @@ interface Clinic {
   latitude: number
   longitude: number
   contact_info: string | null
+  distance?: number
+  source: 'openstreetmap' | 'supabase'
 }
 
 export const ClinicsTab = () => {
-  const [clinics, setClinics] = useState<Clinic[]>([])
-  const [view, setView] = useState<'list' | 'map'>('list')
+  const { fetchNearbyClinics, clinics: nearbyClinics, loading } = useNearbyClinics()
+  const [supabaseClinics, setSupabaseClinics] = useState<Clinic[]>([])
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
-  const mapContainer = useRef<HTMLDivElement>(null)
-  const map = useRef<mapboxgl.Map | null>(null)
-  const [mapboxToken, setMapboxToken] = useState('')
-  const [showTokenInput, setShowTokenInput] = useState(false)
+  const [loadingLocation, setLoadingLocation] = useState(false)
+  const [view, setView] = useState<'directory' | 'nearby'>('directory')
 
   useEffect(() => {
-    fetchClinics()
-    
-    // Try to get user location
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          })
-        },
-        (error) => {
-          console.log('Geolocation error:', error)
-        }
-      )
-    }
+    fetchSupabaseClinics()
   }, [])
 
-  useEffect(() => {
-    if (view === 'map' && mapboxToken && mapContainer.current && !map.current) {
-      initializeMap()
-    }
-  }, [view, mapboxToken])
-
-  const fetchClinics = async () => {
-    const { data, error } = await supabase
-      .from('clinics')
-      .select('*')
-      .order('name')
-    
-    if (error) {
-      toast.error('Failed to load clinics')
-    } else {
-      setClinics(data || [])
-    }
-  }
-
-  const initializeMap = () => {
-    if (!mapContainer.current || !mapboxToken) return
-
-    mapboxgl.accessToken = mapboxToken
-    
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v11',
-      center: userLocation ? [userLocation.lng, userLocation.lat] : [-74.0060, 40.7128],
-      zoom: 12
-    })
-
-    // Add navigation controls
-    map.current.addControl(new mapboxgl.NavigationControl())
-
-    // Add user location marker if available
-    if (userLocation) {
-      new mapboxgl.Marker({ color: 'blue' })
-        .setLngLat([userLocation.lng, userLocation.lat])
-        .setPopup(new mapboxgl.Popup().setHTML('<h4>Your Location</h4>'))
-        .addTo(map.current)
-    }
-
-    // Add clinic markers
-    clinics.forEach(clinic => {
-      const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(
-        `<h4>${clinic.name}</h4>
-         <p>${clinic.address}</p>
-         ${clinic.contact_info ? `<p>📞 ${clinic.contact_info}</p>` : ''}`
-      )
-
-      new mapboxgl.Marker({ color: 'red' })
-        .setLngLat([clinic.longitude, clinic.latitude])
-        .setPopup(popup)
-        .addTo(map.current!)
-    })
-  }
-
-  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
-    const R = 6371 // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180
-    const dLng = (lng2 - lng1) * Math.PI / 180
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-    return R * c
-  }
-
-  const clinicsWithDistance = userLocation 
-    ? clinics.map(clinic => ({
+  const fetchSupabaseClinics = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clinics')
+        .select('*')
+        .order('name')
+      
+      if (error) throw error
+      
+      const transformedClinics = (data || []).map(clinic => ({
         ...clinic,
-        distance: calculateDistance(
-          userLocation.lat, userLocation.lng,
-          clinic.latitude, clinic.longitude
-        )
-      })).sort((a, b) => (a.distance || 0) - (b.distance || 0))
-    : clinics
+        source: 'supabase' as const
+      }))
+      
+      setSupabaseClinics(transformedClinics)
+    } catch (error) {
+      console.error('Error fetching clinics:', error)
+      toast.error('Failed to load clinic directory')
+    }
+  }
 
-  const handleMapView = () => {
-    if (!mapboxToken) {
-      setShowTokenInput(true)
+  const getUserLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by this browser')
       return
     }
-    setView('map')
+
+    setLoadingLocation(true)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        }
+        setUserLocation(location)
+        fetchNearbyClinics(location.lat, location.lng)
+        setView('nearby')
+        setLoadingLocation(false)
+      },
+      (error) => {
+        console.error('Geolocation error:', error)
+        toast.error('Unable to get your location')
+        setLoadingLocation(false)
+      }
+    )
   }
 
-  const handleTokenSubmit = () => {
-    if (mapboxToken.trim()) {
-      setShowTokenInput(false)
-      setView('map')
-    } else {
-      toast.error('Please enter a valid Mapbox token')
-    }
-  }
+  const displayedClinics = view === 'nearby' ? nearbyClinics : supabaseClinics
 
   return (
     <div className="space-y-6">
@@ -151,107 +90,141 @@ export const ClinicsTab = () => {
             <div className="flex gap-2">
               <Button
                 size="sm"
-                variant={view === 'list' ? 'default' : 'outline'}
-                onClick={() => setView('list')}
+                variant={view === 'directory' ? 'default' : 'outline'}
+                onClick={() => setView('directory')}
               >
                 <List className="w-4 h-4" />
-                List
+                Directory
               </Button>
               <Button
                 size="sm"
-                variant={view === 'map' ? 'default' : 'outline'}
-                onClick={handleMapView}
+                variant={view === 'nearby' ? 'default' : 'outline'}
+                onClick={getUserLocation}
+                disabled={loadingLocation || loading}
               >
-                <MapIcon className="w-4 h-4" />
-                Map
+                {loadingLocation ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                ) : (
+                  <Navigation className="w-4 h-4" />
+                )}
+                Nearby
               </Button>
             </div>
           </CardTitle>
           <CardDescription>
-            Find and explore healthcare clinics near you
+            {view === 'nearby' 
+              ? 'Find healthcare facilities near your location using real-time data'
+              : 'Browse our directory of registered healthcare clinics'
+            }
           </CardDescription>
         </CardHeader>
       </Card>
 
-      {showTokenInput && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Mapbox Configuration</CardTitle>
-            <CardDescription>
-              To view clinics on the map, please enter your Mapbox public token.
-              You can get one for free at <a href="https://mapbox.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">mapbox.com</a>
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Enter your Mapbox public token..."
-                value={mapboxToken}
-                onChange={(e) => setMapboxToken(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md"
-              />
-              <Button onClick={handleTokenSubmit}>
-                Use Token
-              </Button>
+      {view === 'nearby' && nearbyClinics.length > 0 && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-blue-800">
+              <MapIcon className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                Showing live data from OpenStreetMap - {nearbyClinics.length} clinics found within 5km
+              </span>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {view === 'list' ? (
+      {displayedClinics.length > 0 ? (
         <Card>
           <CardContent className="p-6">
-            {clinicsWithDistance.length === 0 ? (
-              <div className="text-center py-8">
-                <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No clinics available</p>
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2">
-                {clinicsWithDistance.map((clinic) => (
-                  <div key={clinic.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold">{clinic.name}</h3>
-                      {userLocation && 'distance' in clinic && clinic.distance !== undefined && (
-                        <Badge variant="secondary">
-                          {(clinic.distance as number).toFixed(1)} km
+            <div className="grid gap-4 md:grid-cols-2">
+              {displayedClinics.map((clinic) => (
+                <div key={clinic.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="font-semibold text-lg">{clinic.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant="outline" 
+                        className={`text-xs ${
+                          clinic.source === 'openstreetmap' 
+                            ? 'border-green-300 text-green-700 bg-green-50' 
+                            : 'border-gray-300 text-gray-700 bg-gray-50'
+                        }`}
+                      >
+                        {clinic.source === 'openstreetmap' ? 'Live Data' : 'Directory'}
+                      </Badge>
+                      {clinic.distance && (
+                        <Badge variant="secondary" className="text-xs">
+                          {clinic.distance.toFixed(1)} km
                         </Badge>
                       )}
                     </div>
-                    
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground flex items-start gap-2">
-                        <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                        {clinic.address}
-                      </p>
-                      
-                      {clinic.contact_info && (
-                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                          <Phone className="w-4 h-4" />
-                          {clinic.contact_info}
-                        </p>
-                      )}
-                      
-                      <div className="flex gap-2 mt-3">
-                        <Button size="sm" variant="outline">
-                          Get Directions
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Call Now
-                        </Button>
-                      </div>
-                    </div>
                   </div>
-                ))}
-              </div>
-            )}
+                  
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <span>{clinic.address}</span>
+                    </div>
+                    
+                    {clinic.contact_info && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        <span>{clinic.contact_info}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2 mt-4">
+                    <Button size="sm" variant="outline">
+                      Get Directions
+                    </Button>
+                    {clinic.contact_info && (
+                      <Button size="sm" variant="outline">
+                        Call Now
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       ) : (
         <Card>
-          <CardContent className="p-0">
-            <div ref={mapContainer} className="w-full h-96 rounded-lg" />
+          <CardContent className="p-8 text-center">
+            {loading ? (
+              <div className="space-y-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+                <p className="text-muted-foreground">Searching for nearby clinics...</p>
+              </div>
+            ) : view === 'nearby' && nearbyClinics.length === 0 && userLocation ? (
+              <div className="space-y-4">
+                <AlertTriangle className="w-12 h-12 text-yellow-600 mx-auto" />
+                <div>
+                  <h3 className="font-semibold text-yellow-800 mb-2">No Nearby Clinics Found</h3>
+                  <p className="text-yellow-700 text-sm mb-4">
+                    We couldn't find any clinics within 5km of your location using live data.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setView('directory')}
+                    className="text-yellow-800 border-yellow-300"
+                  >
+                    View Directory Instead
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <MapPin className="w-12 h-12 text-muted-foreground mx-auto" />
+                <p className="text-muted-foreground">
+                  {view === 'nearby' 
+                    ? 'Click "Nearby" to find clinics near your location'
+                    : 'No clinics available in directory'
+                  }
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
