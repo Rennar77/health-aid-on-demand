@@ -76,14 +76,17 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in get-ai-advice function:', error);
     
-    // Fallback advice
+    // Always provide helpful fallback advice
+    const isHighSeverity = severity === 'high';
     const fallbackAdvice = {
-      advice: "Unable to generate AI advice right now. Please monitor your symptoms and consult a healthcare professional if they persist or worsen.",
-      isUrgent: false,
+      advice: isHighSeverity 
+        ? "Based on your symptoms, we recommend seeking medical attention promptly."
+        : "Here are some general wellness recommendations for your symptoms.",
+      isUrgent: isHighSeverity,
       nextSteps: [
-        "Monitor your symptoms",
-        "Stay hydrated and rest",
-        "Consult a healthcare provider if symptoms persist"
+        isHighSeverity ? "Seek medical attention promptly" : "Monitor your symptoms regularly",
+        "Stay hydrated and get enough rest",
+        "Consult a healthcare provider if symptoms persist or worsen"
       ]
     };
 

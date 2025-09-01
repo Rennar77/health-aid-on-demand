@@ -24,17 +24,24 @@ export const PaymentSuccess = () => {
       }
 
       try {
-        // Update payment status to success
-        const success = await updatePaymentStatus(paymentId, 'success')
-        if (success) {
-          setPaymentVerified(true)
-          toast.success('Payment verified successfully!')
+        // Check payment status from URL params or webhook
+        const status = searchParams.get('status') || 'success';
+        const transactionId = searchParams.get('transaction_id') || paymentId;
+        
+        if (status === 'success' || status === 'COMPLETE') {
+          const success = await updatePaymentStatus(paymentId, 'success', transactionId)
+          if (success) {
+            setPaymentVerified(true)
+            toast.success('Payment verified successfully!')
+          } else {
+            throw new Error('Failed to verify payment')
+          }
         } else {
-          throw new Error('Failed to verify payment')
+          throw new Error('Payment was not successful')
         }
       } catch (error) {
         console.error('Payment verification error:', error)
-        toast.error('Failed to verify payment')
+        toast.error('Payment verification failed. Please contact support if payment was deducted.')
         await updatePaymentStatus(paymentId, 'failed')
       } finally {
         setLoading(false)
@@ -42,7 +49,7 @@ export const PaymentSuccess = () => {
     }
 
     verifyPayment()
-  }, [paymentId, updatePaymentStatus, navigate])
+  }, [paymentId, updatePaymentStatus, navigate, searchParams])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
