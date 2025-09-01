@@ -19,24 +19,55 @@ export const useAIAdvice = () => {
         body: { symptoms, severity }
       })
 
-      if (error) throw error
+      let adviceData: AIAdviceResponse
 
-      const adviceData: AIAdviceResponse = {
-        advice: data.advice,
-        isUrgent: data.isUrgent || severity === 'high',
-        nextSteps: data.nextSteps || [
-          severity === 'high' ? 'Seek immediate medical attention' : 'Monitor symptoms',
-          'Stay hydrated and rest',
-          'Consider visiting a healthcare provider if symptoms persist'
-        ]
+      if (error || !data?.advice) {
+        // Always provide fallback basic advice if AI fails
+        adviceData = {
+          advice: severity === 'high' 
+            ? 'Based on your symptoms, we recommend seeking medical attention promptly.'
+            : 'Here are some general wellness recommendations for your symptoms.',
+          isUrgent: severity === 'high',
+          nextSteps: [
+            severity === 'high' ? 'Seek medical attention promptly' : 'Monitor your symptoms carefully',
+            'Stay hydrated and get adequate rest',
+            'Maintain a healthy diet with nutritious foods',
+            'Consult a healthcare provider if symptoms persist or worsen'
+          ]
+        }
+      } else {
+        adviceData = {
+          advice: data.advice,
+          isUrgent: data.isUrgent || severity === 'high',
+          nextSteps: data.nextSteps || [
+            severity === 'high' ? 'Seek immediate medical attention' : 'Monitor symptoms',
+            'Stay hydrated and rest',
+            'Consider visiting a healthcare provider if symptoms persist'
+          ]
+        }
       }
 
       setAdvice(adviceData)
       return adviceData
     } catch (error) {
       console.error('AI Advice Error:', error)
-      toast.error('Unable to get AI advice right now')
-      return null
+      
+      // Always provide fallback basic advice even on error
+      const fallbackAdvice: AIAdviceResponse = {
+        advice: severity === 'high' 
+          ? 'Based on your symptoms, we recommend seeking medical attention promptly.'
+          : 'Here are some general wellness recommendations for your symptoms.',
+        isUrgent: severity === 'high',
+        nextSteps: [
+          severity === 'high' ? 'Seek medical attention promptly' : 'Monitor your symptoms carefully',
+          'Stay hydrated and get adequate rest',
+          'Maintain a healthy diet with nutritious foods',
+          'Consult a healthcare provider if symptoms persist or worsen'
+        ]
+      }
+      
+      setAdvice(fallbackAdvice)
+      return fallbackAdvice
     } finally {
       setLoading(false)
     }

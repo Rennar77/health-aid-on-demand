@@ -78,10 +78,17 @@ export const SymptomsTab = () => {
   }
 
   const handlePremiumPayment = async () => {
-    const result = await createPayment(9.99) // $9.99 for premium advice
-    if (result?.checkoutUrl) {
-      window.open(result.checkoutUrl, '_blank')
-      toast.success('Redirecting to payment...')
+    try {
+      const result = await createPayment(700) // KES 700 for premium advice
+      if (result?.checkoutUrl) {
+        window.open(result.checkoutUrl, '_blank')
+        toast.success('Redirecting to payment...')
+      } else {
+        throw new Error('Payment initialization failed')
+      }
+    } catch (error) {
+      console.error('Payment error:', error)
+      toast.error('Payment could not be processed. Please try again or use an alternative method (Mpesa, Card, PayPal).')
     }
   }
 
@@ -272,7 +279,7 @@ export const SymptomsTab = () => {
                   className="flex items-center gap-1"
                 >
                   <CreditCard className="w-3 h-3" />
-                  Get Premium Advice ($9.99)
+                  Get Premium Advice (KES 700)
                 </Button>
               </div>
             </div>
@@ -308,7 +315,7 @@ export const SymptomsTab = () => {
                   disabled={paymentLoading}
                   className="flex items-center gap-1"
                 >
-                  {paymentLoading ? 'Processing...' : 'Pay $9.99'}
+                  {paymentLoading ? 'Processing...' : 'Pay KES 700'}
                 </Button>
                 <Button
                   variant="outline"

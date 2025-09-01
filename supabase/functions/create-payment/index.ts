@@ -25,7 +25,7 @@ serve(async (req) => {
     // Create checkout session with IntaSend
     const checkoutData = {
       amount: amount,
-      currency: 'USD',
+      currency: 'KES',
       email: email,
       phone_number: '', // Optional
       api_ref: paymentId,
@@ -45,7 +45,18 @@ serve(async (req) => {
     if (!response.ok) {
       const errorData = await response.text();
       console.error('IntaSend API Error:', response.status, errorData);
-      throw new Error('Failed to create payment checkout');
+      
+      // Enhanced error handling
+      let errorMessage = 'Failed to create payment checkout';
+      if (response.status === 400) {
+        errorMessage = 'Invalid payment information provided';
+      } else if (response.status === 401) {
+        errorMessage = 'Payment service authentication failed';
+      } else if (response.status >= 500) {
+        errorMessage = 'Payment service temporarily unavailable';
+      }
+      
+      throw new Error(errorMessage);
     }
 
     const result = await response.json();
