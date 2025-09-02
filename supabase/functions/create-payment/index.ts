@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,66 +13,92 @@ serve(async (req) => {
   }
 
   try {
-    const { amount, paymentId, email } = await req.json();
+    const { amount, email } = await req.json();
 
-    // IntaSend API configuration
-    const intasendPublishableKey = Deno.env.get('INTASEND_PUBLISHABLE_KEY');
-    const intasendSecretKey = Deno.env.get('INTASEND_SECRET_KEY');
+    // Paystack API configuration
+    const paystackSecretKey = Deno.env.get('PAYSTACK_SECRET_KEY');
 
-    if (!intasendPublishableKey || !intasendSecretKey) {
-      console.error('IntaSend API keys missing:', { 
-        hasPublishable: !!intasendPublishableKey, 
-        hasSecret: !!intasendSecretKey 
-      });
-      throw new Error('IntaSend API keys not configured');
+    if (!paystackSecretKey) {
+      console.error('Paystack secret key missing');
+      throw new Error('Paystack API key not configured');
     }
 
-    // Create checkout session with IntaSend Collection API
-    const checkoutData = {
-      public_key: intasendPublishableKey,
-      amount: amount,
-      currency: 'KES',
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get authenticated user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Authorization header missing');
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Generate unique reference
+    const reference = `ht_${Date.now()}_${user.id.substring(0, 8)}`;
+
+    // Create transaction record in database
+    const { data: transaction, error: dbError } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: user.id,
+        amount: amount,
+        currency: 'KES',
+        reference: reference,
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error('Database error:', dbError);
+      throw new Error('Failed to create transaction record');
+    }
+
+    // Create Paystack payment
+    const paystackData = {
       email: email,
-      phone_number: '', // Optional for M-Pesa
-      api_ref: paymentId,
-      redirect_url: `${req.headers.get('origin')}/payment-success?payment_id=${paymentId}`,
-      comment: 'Premium Health Advice - HealthTrack App',
-      webhook_endpoint: `${req.headers.get('origin')}/api/webhooks/intasend`
+      amount: amount * 100, // Paystack expects amount in kobo (cents)
+      currency: 'KES',
+      reference: reference,
+      callback_url: `${req.headers.get('origin')}/payment-success?reference=${reference}`,
+      metadata: {
+        user_id: user.id,
+        transaction_id: transaction.id
+      }
     };
 
-    console.log('Creating IntaSend checkout with data:', { 
-      amount, 
+    console.log('Creating Paystack payment:', { 
+      amount: paystackData.amount, 
       currency: 'KES', 
       email, 
-      api_ref: paymentId 
+      reference 
     });
 
-    // Use IntaSend Collection API
-    const response = await fetch('https://sandbox.intasend.com/api/v1/payment/collection/', {
+    const response = await fetch('https://api.paystack.co/transaction/initialize', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-IntaSend-Public-API-Key': intasendPublishableKey,
+        'Authorization': `Bearer ${paystackSecretKey}`,
       },
-      body: JSON.stringify(checkoutData),
+      body: JSON.stringify(paystackData),
     });
 
-    const responseText = await response.text();
-    console.log('IntaSend API Response:', response.status, responseText);
+    const responseData = await response.json();
+    console.log('Paystack API Response:', response.status, responseData);
 
-    if (!response.ok) {
-      console.error('IntaSend API Error:', response.status, responseText);
-      
-      // Parse error response
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch (e) {
-        errorData = { error: responseText };
-      }
+    if (!response.ok || !responseData.status) {
+      console.error('Paystack API Error:', responseData);
       
       // Enhanced error handling
-      let errorMessage = 'Failed to create payment checkout';
+      let errorMessage = 'Failed to create payment';
       if (response.status === 400) {
         errorMessage = 'Invalid payment information provided';
       } else if (response.status === 401) {
@@ -83,13 +110,12 @@ serve(async (req) => {
       throw new Error(errorMessage);
     }
 
-    const result = JSON.parse(responseText);
-    console.log('Payment created successfully:', result);
+    console.log('Paystack payment created successfully:', responseData.data);
 
     return new Response(JSON.stringify({
-      checkout_url: result.url || result.redirect_url,
-      payment_id: paymentId,
-      reference: result.id || result.invoice,
+      checkout_url: responseData.data.authorization_url,
+      reference: reference,
+      access_code: responseData.data.access_code,
       status: 'created'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -98,7 +124,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in create-payment function:', error);
     return new Response(JSON.stringify({ 
-      error: error.message || 'Payment could not be processed. Please try again or use an alternative method (Mpesa, Card, PayPal).'
+      error: error.message || 'Payment could not be processed. Please try again or use an alternative method (M-Pesa, Card, Bank).'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

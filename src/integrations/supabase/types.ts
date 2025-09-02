@@ -192,22 +192,63 @@ export type Database = {
           },
         ]
       }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          reference: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          reference: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          reference?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string | null
           id: string
+          is_premium: boolean
           name: string | null
           role: string | null
         }
         Insert: {
           created_at?: string | null
           id: string
+          is_premium?: boolean
           name?: string | null
           role?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
+          is_premium?: boolean
           name?: string | null
           role?: string | null
         }

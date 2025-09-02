@@ -3,18 +3,19 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from './useAuth'
 import { toast } from 'sonner'
 
-interface Payment {
+interface Transaction {
   id: string
   amount: number
+  currency: string
   status: 'pending' | 'success' | 'failed'
-  transaction_id?: string
+  reference: string
   created_at: string
 }
 
 export const usePayments = () => {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
-  const [payments, setPayments] = useState<Payment[]>([])
+  const [transactions, setTransactions] = useState<Transaction[]>([])
 
   const createPayment = async (amount: number) => {
     if (!user) {
@@ -24,31 +25,21 @@ export const usePayments = () => {
 
     setLoading(true)
     try {
-      // Create payment record in Supabase
-      const { data: payment, error } = await supabase
-        .from('payments')
-        .insert({
-          user_id: user.id,
-          amount,
-          status: 'pending'
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // Initialize IntaSend payment
+      // Create payment request via Paystack
       const { data, error: paymentError } = await supabase.functions.invoke('create-payment', {
         body: { 
           amount,
-          paymentId: payment.id,
           email: user.email
         }
       })
 
       if (paymentError) throw paymentError
 
-      return { payment, checkoutUrl: data.checkout_url }
+      return { 
+        checkoutUrl: data.checkout_url, 
+        reference: data.reference,
+        accessCode: data.access_code
+      }
     } catch (error) {
       console.error('Payment creation error:', error)
       toast.error('Failed to create payment')
@@ -58,52 +49,57 @@ export const usePayments = () => {
     }
   }
 
-  const fetchPayments = async () => {
+  const fetchTransactions = async () => {
     if (!user) return
 
     try {
       const { data, error } = await supabase
-        .from('payments')
+        .from('transactions')
         .select('*')
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setPayments((data || []).map(payment => ({
-        ...payment,
-        status: payment.status as 'pending' | 'success' | 'failed'
+      setTransactions((data || []).map(transaction => ({
+        ...transaction,
+        status: transaction.status as 'pending' | 'success' | 'failed'
       })))
     } catch (error) {
-      console.error('Error fetching payments:', error)
+      console.error('Error fetching transactions:', error)
       toast.error('Failed to load payment history')
     }
   }
 
-  const updatePaymentStatus = async (paymentId: string, status: 'success' | 'failed', transactionId?: string) => {
+  const verifyPayment = async (reference: string) => {
+    if (!user) return false
+
     try {
-      const { error } = await supabase
-        .from('payments')
-        .update({ 
-          status,
-          transaction_id: transactionId 
-        })
-        .eq('id', paymentId)
+      const { data, error } = await supabase.functions.invoke('verify-payment', {
+        body: { reference }
+      })
 
       if (error) throw error
       
-      // Refresh payments list
-      fetchPayments()
-      return true
+      if (data.verified && data.payment_status === 'success') {
+        toast.success('Payment verified successfully!')
+        // Refresh transactions
+        fetchTransactions()
+        return true
+      } else {
+        toast.error('Payment verification failed')
+        return false
+      }
     } catch (error) {
-      console.error('Error updating payment status:', error)
+      console.error('Payment verification error:', error)
+      toast.error('Payment verification failed')
       return false
     }
   }
 
   return {
     createPayment,
-    fetchPayments,
-    updatePaymentStatus,
-    payments,
+    fetchTransactions,
+    verifyPayment,
+    transactions,
     loading
   }
 }

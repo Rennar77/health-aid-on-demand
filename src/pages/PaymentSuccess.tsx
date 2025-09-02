@@ -9,47 +9,37 @@ import { toast } from 'sonner'
 export const PaymentSuccess = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { updatePaymentStatus } = usePayments()
+  const { verifyPayment } = usePayments()
   const [loading, setLoading] = useState(true)
   const [paymentVerified, setPaymentVerified] = useState(false)
 
-  const paymentId = searchParams.get('payment_id')
+  const reference = searchParams.get('reference')
 
   useEffect(() => {
-    const verifyPayment = async () => {
-      if (!paymentId) {
+    const handlePaymentVerification = async () => {
+      if (!reference) {
         toast.error('Invalid payment reference')
         navigate('/')
         return
       }
 
       try {
-        // Check payment status from URL params or webhook
-        const status = searchParams.get('status') || 'success';
-        const transactionId = searchParams.get('transaction_id') || paymentId;
+        const verified = await verifyPayment(reference)
+        setPaymentVerified(verified)
         
-        if (status === 'success' || status === 'COMPLETE') {
-          const success = await updatePaymentStatus(paymentId, 'success', transactionId)
-          if (success) {
-            setPaymentVerified(true)
-            toast.success('Payment verified successfully!')
-          } else {
-            throw new Error('Failed to verify payment')
-          }
-        } else {
-          throw new Error('Payment was not successful')
+        if (!verified) {
+          toast.error('Payment verification failed. Please contact support if payment was deducted.')
         }
       } catch (error) {
         console.error('Payment verification error:', error)
         toast.error('Payment verification failed. Please contact support if payment was deducted.')
-        await updatePaymentStatus(paymentId, 'failed')
       } finally {
         setLoading(false)
       }
     }
 
-    verifyPayment()
-  }, [paymentId, updatePaymentStatus, navigate, searchParams])
+    handlePaymentVerification()
+  }, [reference, verifyPayment, navigate])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center p-4">
@@ -69,7 +59,7 @@ export const PaymentSuccess = () => {
           </CardTitle>
           <CardDescription>
             {loading 
-              ? 'Please wait while we verify your payment'
+              ? 'Please wait while we verify your payment with Paystack'
               : paymentVerified 
                 ? 'Your premium health advice access has been activated'
                 : 'We encountered an issue processing your payment'

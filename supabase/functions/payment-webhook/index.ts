@@ -14,61 +14,77 @@ serve(async (req) => {
 
   try {
     const webhookData = await req.json();
-    console.log('IntaSend webhook received:', webhookData);
+    console.log('Paystack webhook received:', webhookData);
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Extract payment information from webhook
+    // Extract payment information from Paystack webhook
     const {
-      invoice_id,
-      api_ref,
-      state,
-      charges,
-      net_amount,
-      currency,
-      value,
-      account,
-      failed_reason,
-      created_at
+      event,
+      data: paymentData
     } = webhookData;
 
-    // Determine payment status
-    let paymentStatus = 'pending';
-    if (state === 'COMPLETE' || state === 'PAID') {
-      paymentStatus = 'success';
-    } else if (state === 'FAILED' || state === 'CANCELLED') {
-      paymentStatus = 'failed';
+    // Only process charge success events
+    if (event !== 'charge.success') {
+      console.log('Ignoring non-success event:', event);
+      return new Response(JSON.stringify({
+        status: 'success',
+        message: 'Event ignored'
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
+
+    const {
+      reference,
+      amount,
+      currency,
+      status,
+      metadata
+    } = paymentData;
 
     console.log('Processing payment update:', {
-      api_ref,
-      state,
-      paymentStatus,
-      amount: net_amount || value
+      reference,
+      status,
+      amount,
+      currency
     });
 
-    // Update payment record in database
-    const { data, error } = await supabase
-      .from('payments')
+    // Update transaction record in database
+    const { data: transaction, error: updateError } = await supabase
+      .from('transactions')
       .update({
-        status: paymentStatus,
-        transaction_id: invoice_id,
-        updated_at: new Date().toISOString()
+        status: status === 'success' ? 'success' : 'failed',
       })
-      .eq('id', api_ref)
-      .select();
+      .eq('reference', reference)
+      .select()
+      .single();
 
-    if (error) {
-      console.error('Database update error:', error);
-      throw error;
+    if (updateError) {
+      console.error('Database update error:', updateError);
+      throw updateError;
     }
 
-    console.log('Payment updated successfully:', data);
+    console.log('Transaction updated successfully:', transaction);
 
-    // Send success response to IntaSend
+    // If payment was successful, update user to premium
+    if (status === 'success' && transaction) {
+      const { error: premiumError } = await supabase
+        .from('users')
+        .update({ is_premium: true })
+        .eq('id', transaction.user_id);
+
+      if (premiumError) {
+        console.error('Error updating user premium status:', premiumError);
+      } else {
+        console.log('User upgraded to premium:', transaction.user_id);
+      }
+    }
+
     return new Response(JSON.stringify({
       status: 'success',
       message: 'Webhook processed successfully'
