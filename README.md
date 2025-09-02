@@ -2,6 +2,8 @@ HealthTrack: Your Pocket Health Companion 🩺
 CONTRIBUTORS
 1. Jarvan Okuro - javanokuro254@gmail.com
 2. Renard Owiti - renardowiti@gmail.com
+
+##
 HealthTrack is a mobile-friendly web application designed to provide basic medical guidance and clinic referrals based on user-reported symptoms. Built for a hackathon focusing on SDGs 3 (Good Health & Well-being), 4 (Quality Education), and 11 (Sustainable Cities & Communities), its goal is to make preliminary healthcare advice more accessible and reduce unnecessary strain on medical facilities.
 
 Live Demo: [https://health-aid-on-demand.lovable.app/]
