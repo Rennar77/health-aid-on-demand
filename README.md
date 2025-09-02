@@ -2,7 +2,7 @@ HealthTrack: Your Pocket Health Companion 🩺
 
 #CONTRIBUTORS
 
-1. Jarvan Okuro - javanokuro254@gmail.com
+1. Jarvan Okuro - javanokuro@yahoo.com
 2. Renard Owiti - renardowiti@gmail.com
 
 ##
