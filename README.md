@@ -10,7 +10,7 @@ HealthTrack is a mobile-friendly web application designed to provide basic medic
 
 Live Demo: [https://health-aid-on-demand.lovable.app/]
 
-Pitch Deck:[https://gamma.app/docs/lkjxcmw7jw9vttp?following_id=zmceu1fyun4wxza&follow_on_start=true]
+Pitch Deck:[https://gamma.app/docs/HealthTrack-Your-Pocket-Health-Companion-ffmjvp5vc9pxab5]
 
 ✨ Features Symptom Logging: Users can easily input and describe their symptoms.
 
