@@ -1,54 +1,22 @@
-# Welcome to your Lovable project
+HealthTrack: Your Pocket Health Companion 🩺
+CONTRIBUTORS
+1. Jarvan Okuro - javanokuro254@gmail.com
+2. Renard Owiti - renardowiti@gmail.com
+HealthTrack is a mobile-friendly web application designed to provide basic medical guidance and clinic referrals based on user-reported symptoms. Built for a hackathon focusing on SDGs 3 (Good Health & Well-being), 4 (Quality Education), and 11 (Sustainable Cities & Communities), its goal is to make preliminary healthcare advice more accessible and reduce unnecessary strain on medical facilities.
 
-## Project info
+Live Demo: [https://health-aid-on-demand.lovable.app/]
 
-**URL**: https://lovable.dev/projects/47120fa4-9fff-4b6e-9254-b897b5bb4b94
+Pitch Deck:[https://gamma.app/docs/lkjxcmw7jw9vttp?following_id=zmceu1fyun4wxza&follow_on_start=true]
 
-## How can I edit this code?
+✨ Features Symptom Logging: Users can easily input and describe their symptoms.
 
-There are several ways of editing your application.
+AI-Powered Advice: Receive basic, non-diagnostic medical guidance based on common knowledge.
 
-**Use Lovable**
+Smart Referrals: Get recommendations for nearby or relevant clinics or hospitals if professional care is advised.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/47120fa4-9fff-4b6e-9254-b897b5bb4b94) and start prompting.
+Private History: Maintain a secure, personal history of all your symptom logs and the advice given.
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+User Authentication: Secure sign-up and login to keep all health data private.
 
 ## What technologies are used for this project?
 
@@ -60,14 +28,24 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
+📋 How to Use Sign Up / Log In: Create a secure account to start using HealthTrack.
 
-Simply open [Lovable](https://lovable.dev/projects/47120fa4-9fff-4b6e-9254-b897b5bb4b94) and click on Share -> Publish.
+Log Symptoms: Navigate to the "Checkup" page and describe how you're feeling.
 
-## Can I connect a custom domain to my Lovable project?
+Get Advice: Submit your symptoms to receive basic guidance and see if a clinic referral is recommended.
 
-Yes, you can!
+Review History: Check your "History" page to see a log of all your previous check-ins and the advice given.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+#🎯 Hackathon Focus: SDGs 3 SDG 3: Good Health & Well-being: Democratizes access to basic health information, promoting preventative care and informed decision-making
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+#🔮 Future Roadmap
+
+More sophisticated AI analysis for symptom checking.
+
+Medication tracking and reminder features.
+
+Multi-language support to increase accessibility.
+
+Push notifications for follow-up check-ins.
+
+⚠️ Important Disclaimer HealthTrack is a hackathon project and not a certified medical device. It is intended for informational purposes only and does not provide medical advice, diagnosis, or treatment. Always seek the advice of a qualified healthcare provider with any questions you may have regarding a medical condition. Never disregard professional medical advice or delay in seeking it because of something you have read on this application.
