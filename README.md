@@ -38,7 +38,7 @@ Log Symptoms: Navigate to the "Checkup" page and describe how you're feeling.
 
 Get Advice: Submit your symptoms to receive basic guidance and see if a clinic referral is recommended.
 
-Review History: Check your "History" page to see a log of all your previous check-ins and the advice given.
+Review History: Check your "History" page to see a log of all your previous check-ins.
 
 #🎯 Hackathon Focus: SDGs 3 SDG 3: Good Health & Well-being: Democratizes access to basic health information, promoting preventative care and informed decision-making
 
