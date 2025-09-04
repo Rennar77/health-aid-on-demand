@@ -18,7 +18,7 @@ AI-Powered Advice: Receive basic, non-diagnostic medical guidance based on commo
 
 Smart Referrals: Get recommendations for nearby or relevant clinics or hospitals if professional care is advised.
 
-Private History: Maintain a secure, personal history of all your symptom logs and the advice given.
+Private History: Maintain a secure, personal history of all your symptom logs.
 
 User Authentication: Secure sign-up and login to keep all health data private.
 
